@@ -1,0 +1,52 @@
+name: Build Hiddify iOS IPA
+
+on:
+  workflow_dispatch:
+
+env:
+  IS_GITHUB_ACTIONS: 1
+  CHANNEL: prod
+  FLUTTER_VERSION: "3.38.5"
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+
+      - name: Prepare iOS
+        run: |
+          make ios-prepare
+
+      - name: Build iOS
+        run: |
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-target lib/main_prod.dart
+
+      - name: Create unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Hiddify.app
+          zip -r Hiddify-iOS-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v6
+        with:
+          name: Hiddify-iOS-IPA
+          path: Hiddify-iOS-unsigned.ipa
+          retention-days: 7
